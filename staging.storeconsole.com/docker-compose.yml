@@ -1,0 +1,138 @@
+name: storeconsole-staging
+
+services:
+  web-blue:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-staging-web-blue
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: staging
+      APP_URL: https://staging.storeconsole.com
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+      - ./blue/public:/var/www/html/public
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+
+  web-green:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-staging-web-green
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: staging
+      APP_URL: https://staging.storeconsole.com
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+      - ./green/public:/var/www/html/public
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+
+  ssr:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-staging-ssr
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: staging
+      APP_URL: https://staging.storeconsole.com
+      SSR_ENABLED: "false"
+    command: ["node", "bootstrap/ssr/ssr.js"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.25"
+    mem_limit: 256m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+
+  queue:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-staging-queue
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: staging
+    command: ["php", "artisan", "horizon"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.25"
+    mem_limit: 1536m
+    depends_on:
+      web-green:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 1536M
+    security_opt:
+      - no-new-privileges:true
+
+  scheduler:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-staging-scheduler
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: staging
+    command: ["/bin/sh", "-lc", "while true; do php artisan schedule:run --no-interaction 2>&1 | head -5; sleep 60; done"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.10"
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 128M
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  private_backend:
+    external: true

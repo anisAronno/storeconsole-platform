@@ -1,0 +1,41 @@
+# Secrets / environment
+.env
+.env.*
+
+# Storage dirs (logs, cache, compiled views, symlinks)
+**/storage/
+**/shared-storage/
+**/public/storage
+
+# Build artifacts (compiled JS/CSS)
+**/public/build/assets/
+
+# SSL / certbot accounts and private keys
+**/certs/accounts/
+**/certs/archive/*/privkey*.pem
+**/certs/live/*/privkey.pem
+**/certs/.gitkeep
+
+# ACME challenge files
+**/certbot-www/
+
+# Old proxy directory (duplicate of _proxy)
+/proxy/
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*.swp
+
+# macOS artifacts
+.DS_Store
+._*
+
+# Temp files
+*.tmp
+
+# Deploy artifacts
+last_deploy_sha
+active_color

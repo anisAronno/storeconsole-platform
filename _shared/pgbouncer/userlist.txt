@@ -1,0 +1,8 @@
+"postgres" "PgRootPass123ABC"
+"storeconsole_prod_user" "ProdPass123ABC"
+"storeconsole_staging_user" "StagePass123ABC"
+"storeconsole_dev_user" "TestPass123ABC"
+"pulse_prod_user" "PulseProdPass123ABC"
+"pulse_staging_user" "PulseStagePass123ABC"
+"pulse_dev_user" "PulseDevPass123ABC"
+"gulfgym_user" "07azaOswa8xrpUohcl1RhI4moVtZvb0w"

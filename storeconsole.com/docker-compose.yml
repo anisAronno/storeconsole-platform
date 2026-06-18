@@ -1,0 +1,136 @@
+name: storeconsole-production
+
+services:
+  web-blue:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-production-web-blue
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: production
+      APP_URL: https://storeconsole.com
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+      - ./blue/public:/var/www/html/public
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "1.50"
+    mem_limit: 1536m
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 1536M
+    security_opt:
+      - no-new-privileges:true
+
+  web-green:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-production-web-green
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: production
+      APP_URL: https://storeconsole.com
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+      - ./green/public:/var/www/html/public
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "1.50"
+    mem_limit: 1536m
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.50'
+          memory: 1536M
+    security_opt:
+      - no-new-privileges:true
+
+  ssr:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-production-ssr
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: production
+      APP_URL: https://storeconsole.com
+      SSR_URL: http://0.0.0.0:13714
+    command: ["/bin/sh", "-lc", "php artisan inertia:start-ssr --runtime=node --no-interaction"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.35"
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",13714)?0:1);'"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.35'
+          memory: 384M
+    security_opt:
+      - no-new-privileges:true
+
+  queue:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-production-queue
+    env_file:
+      - ./.env
+    command: ["php", "artisan", "horizon"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 768m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 768M
+    security_opt:
+      - no-new-privileges:true
+
+  scheduler:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-production-scheduler
+    env_file:
+      - ./.env
+    command: ["/bin/sh", "-lc", "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.15"
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 128M
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  private_backend:
+    external: true

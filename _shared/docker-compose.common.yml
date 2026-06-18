@@ -1,0 +1,320 @@
+name: storeconsole-common
+
+services:
+  nginx-gateway:
+    image: nginx:1.27-alpine
+    container_name: nginx-gateway
+    restart: unless-stopped
+    cpus: "0.50"
+    mem_limit: 128m
+    extra_hosts:
+      - "host-gateway:host-gateway"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../_proxy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../_proxy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ../_proxy/nginx/upstreams:/etc/nginx/upstreams
+      - ../_proxy/nginx/certs:/etc/letsencrypt
+      - ../_proxy/nginx/auth:/etc/nginx/auth:ro
+      - ../storeconsole.com:/opt/storeconsole-platform/storeconsole.com:ro
+      - ../staging.storeconsole.com:/opt/storeconsole-platform/staging.storeconsole.com:ro
+      - ../dev.storeconsole.com:/opt/storeconsole-platform/dev.storeconsole.com:ro
+      - /opt/gulfgym-platform/gulfgym.anichur.com/public:/opt/gulfgym-platform/gulfgym.anichur.com/public:ro
+      - nginx-cache:/var/cache/nginx
+      - ./logs/nginx:/var/log/nginx
+      - ./certbot-www:/var/www/certbot
+    networks:
+      - public_edge
+      - private_backend
+      - monitoring_internal
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+
+  postgres:
+    image: ${POSTGRES_IMAGE:-pgvector/pgvector:pg18-trixie}
+    container_name: postgres
+    restart: unless-stopped
+    cpus: "2.00"
+    mem_limit: 3g
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:?set POSTGRES_SUPERUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERPASS:?set POSTGRES_SUPERPASS}
+      POSTGRES_DB: ${POSTGRES_SUPERDB:-postgres}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+      TZ: UTC
+      PGTZ: UTC
+      STORECONSOLE_PROD_DB: ${STORECONSOLE_PROD_DB:-storeconsole_production}
+      STORECONSOLE_STAGING_DB: ${STORECONSOLE_STAGING_DB:-storeconsole_staging}
+      STORECONSOLE_DEV_DB: ${STORECONSOLE_DEV_DB:-storeconsole_dev}
+      PULSE_PROD_DB: ${PULSE_PROD_DB:-pulse_production}
+      PULSE_STAGING_DB: ${PULSE_STAGING_DB:-pulse_staging}
+      PULSE_DEV_DB: ${PULSE_DEV_DB:-pulse_dev}
+      STORECONSOLE_PROD_USER: ${STORECONSOLE_PROD_USER:?set STORECONSOLE_PROD_USER}
+      STORECONSOLE_STAGING_USER: ${STORECONSOLE_STAGING_USER:?set STORECONSOLE_STAGING_USER}
+      STORECONSOLE_DEV_USER: ${STORECONSOLE_DEV_USER:?set STORECONSOLE_DEV_USER}
+      PULSE_PROD_USER: ${PULSE_PROD_USER:?set PULSE_PROD_USER}
+      PULSE_STAGING_USER: ${PULSE_STAGING_USER:?set PULSE_STAGING_USER}
+      PULSE_DEV_USER: ${PULSE_DEV_USER:?set PULSE_DEV_USER}
+      STORECONSOLE_PROD_PASSWORD: ${STORECONSOLE_PROD_PASSWORD:?set STORECONSOLE_PROD_PASSWORD}
+      STORECONSOLE_STAGING_PASSWORD: ${STORECONSOLE_STAGING_PASSWORD:?set STORECONSOLE_STAGING_PASSWORD}
+      STORECONSOLE_DEV_PASSWORD: ${STORECONSOLE_DEV_PASSWORD:?set STORECONSOLE_DEV_PASSWORD}
+      PULSE_PROD_PASSWORD: ${PULSE_PROD_PASSWORD:?set PULSE_PROD_PASSWORD}
+      PULSE_STAGING_PASSWORD: ${PULSE_STAGING_PASSWORD:?set PULSE_STAGING_PASSWORD}
+      PULSE_DEV_PASSWORD: ${PULSE_DEV_PASSWORD:?set PULSE_DEV_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./backups:/backups
+    networks:
+      - private_backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER} -d ${POSTGRES_SUPERDB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 3G
+    security_opt:
+      - no-new-privileges:true
+
+  pgbouncer:
+    image: ${PGBOUNCER_IMAGE:-edoburu/pgbouncer:latest}
+    container_name: pgbouncer
+    restart: unless-stopped
+    cpus: "0.25"
+    mem_limit: 128m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_SUPERUSER}
+      DB_PASSWORD: ${POSTGRES_SUPERPASS}
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "300"
+      DEFAULT_POOL_SIZE: "20"
+      RESERVE_POOL_SIZE: "5"
+      RESERVE_POOL_TIMEOUT: "3"
+      ADMIN_USERS: ${PGBOUNCER_ADMIN_USERS:-${POSTGRES_SUPERUSER}}
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
+      SERVER_RESET_QUERY: DISCARD ALL
+    volumes:
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+    networks:
+      - private_backend
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 5432 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    cpus: "1.00"
+    mem_limit: 1536m
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - private_backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "PING"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1536M
+    security_opt:
+      - no-new-privileges:true
+
+  beszel-hub:
+    image: henrygd/beszel:latest
+    container_name: beszel-hub
+    restart: unless-stopped
+    cpus: "0.25"
+    mem_limit: 192m
+    environment:
+      APP_URL: ${BESZEL_APP_URL:-https://monitor.storeconsole.com}
+    volumes:
+      - beszel-data:/beszel_data
+      - beszel-socket:/beszel_socket
+    networks:
+      - monitoring_internal
+    healthcheck:
+      test: ["CMD", "/beszel", "--help"]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 192M
+    security_opt:
+      - no-new-privileges:true
+
+  beszel-agent:
+    image: henrygd/beszel-agent:latest
+    container_name: beszel-agent
+    restart: unless-stopped
+    cpus: "0.15"
+    mem_limit: 64m
+    environment:
+      HUB_URL: http://beszel-hub:8090
+      KEY: ${BESZEL_AGENT_KEY:?set BESZEL_AGENT_KEY}
+      TOKEN: ${BESZEL_AGENT_TOKEN:?set BESZEL_AGENT_TOKEN}
+      LISTEN: "45876"
+      EXTRA_FILESYSTEMS: /
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/hostfs:ro
+    networks:
+      - monitoring_internal
+    depends_on:
+      beszel-hub:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 64M
+    security_opt:
+      - no-new-privileges:true
+
+  reverb:
+    image: ${STORECONSOLE_REVERB_IMAGE:?set STORECONSOLE_REVERB_IMAGE}
+    container_name: storeconsole-reverb
+    env_file:
+      - ./.env
+      - ../storeconsole.com/.env
+    environment:
+      APP_ENV: production
+      APP_URL: https://storeconsole.com
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+      REVERB_APP_ALLOWED_ORIGINS: ${REVERB_APP_ALLOWED_ORIGINS:-https://storeconsole.com,https://staging.storeconsole.com,https://dev.storeconsole.com,https://gulfgym.anichur.com,https://gulfgym-dev.anichur.com}
+      REVERB_APP_RATE_LIMITING_ENABLED: ${REVERB_APP_RATE_LIMITING_ENABLED:-true}
+      REVERB_APP_RATE_LIMIT_MAX_ATTEMPTS: ${REVERB_APP_RATE_LIMIT_MAX_ATTEMPTS:-120}
+      REVERB_APP_RATE_LIMIT_DECAY_SECONDS: ${REVERB_APP_RATE_LIMIT_DECAY_SECONDS:-60}
+      REVERB_SCALING_ENABLED: ${REVERB_SCALING_ENABLED:-true}
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080", "--no-interaction"]
+    volumes:
+      - ../storeconsole.com/shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.25"
+    mem_limit: 256m
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",8080)?0:1);'"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+
+  docker-event-mailer:
+    image: alpine:3.20
+    container_name: docker-event-mailer
+    restart: unless-stopped
+    cpus: "0.10"
+    mem_limit: 64m
+    environment:
+      ALERT_SCRIPT: /opt/scripts/send-alert.sh
+      MARKER_FILE: /host_tmp/storeconsole-deploying
+      SERVER_NAME: ${SERVER_NAME:-storeconsole-vps}
+      SERVER_IP: ${SERVER_IP:-135.125.131.135}
+      ALERT_TO_EMAIL: ${ALERT_TO_EMAIL}
+      ALERT_FROM_EMAIL: ${ALERT_FROM_EMAIL}
+      ALERT_FROM_NAME: ${ALERT_FROM_NAME:-Store Console Server}
+      BREVO_SMTP_HOST: ${BREVO_SMTP_HOST:-smtp-relay.brevo.com}
+      BREVO_SMTP_PORT: ${BREVO_SMTP_PORT:-587}
+      BREVO_SMTP_USERNAME: ${BREVO_SMTP_USERNAME}
+      BREVO_SMTP_PASSWORD: ${BREVO_SMTP_PASSWORD}
+    command: >
+      sh -lc "apk add --no-cache bash curl jq docker-cli ca-certificates && /bin/sh /opt/mailer/watch-events.sh"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp:/host_tmp:ro
+      - ../scripts:/opt/scripts:ro
+      - ./monitoring/docker-event-mailer:/opt/mailer:ro
+    networks:
+      - monitoring_internal
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64M
+    security_opt:
+      - no-new-privileges:true
+
+
+volumes:
+  postgres-data:
+  redis-data:
+  beszel-data:
+  beszel-socket:
+  nginx-cache:
+
+networks:
+  public_edge:
+    external: true
+  private_backend:
+    external: true
+  monitoring_internal:
+    external: true
