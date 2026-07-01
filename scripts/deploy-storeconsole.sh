@@ -112,21 +112,12 @@ rollback_on_failure() {
   if [[ "${ACTIVE_EXISTS:-false}" == "true" && -n "${INACTIVE_COLOR:-}" && -n "${ENVIRONMENT:-}" ]]; then
     rollback_status="started"
     {
-      if [[ "$ENVIRONMENT" == "dev" ]]; then
-        cat > "${NGINX_UPSTREAM_DIR}/storeconsole-${ENVIRONMENT}-active.conf" <<UPSTREAM
-upstream storeconsole_${ENVIRONMENT}_active {
-    server storeconsole-workspace-php:9000 max_fails=3 fail_timeout=10s;
-    keepalive 16;
-}
-UPSTREAM
-      else
-        cat > "${NGINX_UPSTREAM_DIR}/storeconsole-${ENVIRONMENT}-active.conf" <<UPSTREAM
+      cat > "${NGINX_UPSTREAM_DIR}/storeconsole-${ENVIRONMENT}-active.conf" <<UPSTREAM
 upstream storeconsole_${ENVIRONMENT}_active {
     server storeconsole-${ENVIRONMENT}-web-${ACTIVE_COLOR}:9000 max_fails=3 fail_timeout=10s;
     keepalive 16;
 }
 UPSTREAM
-      fi
       docker exec nginx-gateway nginx -t
       docker exec nginx-gateway nginx -s reload
       sync_active_runtime_marker "$ENVIRONMENT" "$ACTIVE_COLOR"
@@ -364,23 +355,21 @@ docker exec "$WEB_CONTAINER" php artisan storage:link || true
 docker exec "$WEB_CONTAINER" php artisan about >/dev/null
 docker exec "$WEB_CONTAINER" php artisan migrate:status >/dev/null || true
 
+# HTTP warmup BEFORE the upstream switch: compiles the FPM opcache and warms the
+# settings / block-data / page caches on the inactive container, so the first
+# real user hits a hot container instead of paying the cold-compile penalty.
+log "Warming inactive container (opcache + app caches)"
+CURRENT_STEP="http_warmup"
+docker exec "$WEB_CONTAINER" sh -c 'for p in / /pricing /modules /features /about /contact /docs/storeconsole; do curl -sf -o /dev/null --max-time 15 "http://127.0.0.1${p}" || true; done' || true
+
 log "Switching upstream to ${INACTIVE_COLOR}"
 CURRENT_STEP="switch_upstream"
-if [[ "$ENVIRONMENT" == "dev" ]]; then
-cat > "$NGINX_UPSTREAM_DIR/storeconsole-${ENVIRONMENT}-active.conf" <<UPSTREAM
-upstream storeconsole_${ENVIRONMENT}_active {
-    server storeconsole-workspace-php:9000 max_fails=3 fail_timeout=10s;
-    keepalive 16;
-}
-UPSTREAM
-else
 cat > "$NGINX_UPSTREAM_DIR/storeconsole-${ENVIRONMENT}-active.conf" <<UPSTREAM
 upstream storeconsole_${ENVIRONMENT}_active {
     server storeconsole-${ENVIRONMENT}-web-${INACTIVE_COLOR}:9000 max_fails=3 fail_timeout=10s;
     keepalive 16;
 }
 UPSTREAM
-fi
 
 docker exec nginx-gateway nginx -t
 

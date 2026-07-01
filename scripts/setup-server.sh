@@ -162,11 +162,9 @@ configure_unattended_upgrades() {
 }
 
 prepare_directories() {
-  mkdir -p "$BASE_DIR"/{_proxy/nginx/{conf.d,upstreams,certs,auth},_shared/{postgres,pgbouncer,redis,monitoring/{beszel,docker-event-mailer,pulse-shared},backups},storeconsole.com/{blue,green,shared-storage},staging.storeconsole.com/{blue,green,shared-storage},dev.storeconsole.com/{blue,green,shared-storage},scripts}
-  mkdir -p /opt/apps/workspace /opt/apps/workspace/ops
+  mkdir -p "$BASE_DIR"/{_proxy/nginx/{conf.d,upstreams,certs,auth},_shared/{postgres,pgbouncer,redis,monitoring/{beszel,docker-event-mailer,pulse-shared},backups},storeconsole.com/{blue,green},staging.storeconsole.com,dev.storeconsole.com,scripts}
   mkdir -p "$BASE_DIR/_shared/logs/nginx"
   chown -R "$DEPLOY_USER":"$DEPLOY_USER" "$BASE_DIR"
-  chown -R "$DEPLOY_USER":"$DEPLOY_USER" /opt/apps/workspace /opt/apps/workspace/ops
   touch "$BASE_DIR/_shared/logs/nginx/access.log" "$BASE_DIR/_shared/logs/nginx/error.log"
   chown -R root:root "$BASE_DIR/_shared/logs/nginx"
   chmod 755 "$BASE_DIR/_shared/logs/nginx"

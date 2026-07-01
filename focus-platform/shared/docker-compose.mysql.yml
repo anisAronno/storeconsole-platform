@@ -1,0 +1,46 @@
+# Focus Platform — Shared MySQL 8 Server
+# Used by all 3 focus projects. Lives on private_backend network
+# so the nginx-gateway can route to focus containers directly.
+
+services:
+  focus-mysql:
+    image: mysql:8.0
+    container_name: focus-mysql
+    restart: unless-stopped
+    cpus: "1.00"
+    mem_limit: 512m
+    environment:
+      MYSQL_ROOT_PASSWORD: ${FOCUS_MYSQL_ROOT_PASS:?set FOCUS_MYSQL_ROOT_PASS}
+      TZ: Asia/Dhaka
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --max_connections=50
+      - --table_open_cache=256
+      - --innodb_buffer_pool_size=128M
+      - --innodb_log_file_size=64M
+      - --performance_schema=OFF
+      - --skip-log-bin
+    volumes:
+      - focus-mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - private_backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p${FOCUS_MYSQL_ROOT_PASS}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  focus-mysql-data:
+    name: focus-mysql-data
+
+networks:
+  private_backend:
+    external: true

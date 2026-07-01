@@ -1,6 +1,7 @@
 # Secrets / environment
 .env
 .env.*
+!*.env.example
 
 # Storage dirs (logs, cache, compiled views, symlinks)
 **/storage/
@@ -25,9 +26,15 @@
 # Logs
 *.log
 
-# Backup files
+# Backup files (all variants — .bak, .bak-<suffix>, .yml.bak-<suffix>, etc.)
 *.bak
+*.bak-*
 *.swp
+
+# Database backups — never commit dumps to a public repo
+backups/*.sql
+backups/*.sql.gz
+backups/*.json
 
 # macOS artifacts
 .DS_Store
@@ -38,4 +45,5 @@
 
 # Deploy artifacts
 last_deploy_sha
+active
 active_color

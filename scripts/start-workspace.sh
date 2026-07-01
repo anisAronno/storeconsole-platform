@@ -17,7 +17,7 @@ set -a; source "$SHARED_ENV"; set +a
 # ── storeconsole workspace ────────────────────────────────────────────────────
 
 start_storeconsole_workspace() {
-  WS_DIR="${BASE_DIR}/local.storeconsole.com"
+  WS_DIR="${BASE_DIR}/dev.storeconsole.com"
   CODE_DIR="/opt/apps/workspace/storeconsole-dev/codes"
   STORAGE_DIR="${WS_DIR}/storage"
   COMPOSE="${WS_DIR}/docker-compose.workspace.yml"
@@ -46,7 +46,7 @@ start_storeconsole_workspace() {
     log "Creating workspace .env from dev env..."
     cp "${BASE_DIR}/dev.storeconsole.com/.env" "${WS_DIR}/.env"
     sed -i "s|^APP_ENV=.*|APP_ENV=local|" "${WS_DIR}/.env"
-    sed -i "s|^APP_URL=.*|APP_URL=https://local.storeconsole.com|" "${WS_DIR}/.env"
+    sed -i "s|^APP_URL=.*|APP_URL=https://dev.storeconsole.com|" "${WS_DIR}/.env"
     sed -i "s|^APP_DEBUG=.*|APP_DEBUG=true|" "${WS_DIR}/.env"
     sed -i "s|^MAIL_MAILER=.*|MAIL_MAILER=log|" "${WS_DIR}/.env"
     # Remove pre-built image reference — workspace uses live code
@@ -75,13 +75,13 @@ start_storeconsole_workspace() {
   docker exec storeconsole-workspace-php php artisan optimize:clear 2>/dev/null || true
   docker exec storeconsole-workspace-php php artisan storage:link 2>/dev/null || true
 
-  log "Storeconsole workspace running at https://local.storeconsole.com"
+  log "Storeconsole workspace running at https://dev.storeconsole.com"
 }
 
 # ── gulfgym workspace ─────────────────────────────────────────────────────────
 
 start_gulfgym_workspace() {
-  WS_DIR="${GULFGYM_BASE_DIR}/local.gulfgym.anichur.com"
+  WS_DIR="${GULFGYM_BASE_DIR}/gulfgym-dev.anichur.com"
   CODE_DIR="/opt/apps/workspace/gulfgym-dev/codes"
   STORAGE_DIR="${WS_DIR}/storage"
   COMPOSE="${WS_DIR}/docker-compose.workspace.yml"
@@ -117,7 +117,7 @@ start_gulfgym_workspace() {
     log "Creating gulfgym workspace .env from gulfgym env..."
     cp "${GULFGYM_BASE_DIR}/gulfgym.anichur.com/.env" "${WS_DIR}/.env"
     sed -i "s|^APP_ENV=.*|APP_ENV=local|" "${WS_DIR}/.env"
-    sed -i "s|^APP_URL=.*|APP_URL=https://local.gulfgym.anichur.com|" "${WS_DIR}/.env"
+    sed -i "s|^APP_URL=.*|APP_URL=https://gulfgym-dev.anichur.com|" "${WS_DIR}/.env"
     sed -i "s|^APP_DEBUG=.*|APP_DEBUG=true|" "${WS_DIR}/.env"
     sed -i "s|^MAIL_MAILER=.*|MAIL_MAILER=log|" "${WS_DIR}/.env"
     log "Gulfgym workspace .env created."
@@ -138,7 +138,7 @@ start_gulfgym_workspace() {
   docker exec gulfgym-workspace-php php /var/www/html/artisan optimize:clear 2>/dev/null || true
   docker exec gulfgym-workspace-php php /var/www/html/artisan storage:link 2>/dev/null || true
 
-  log "GulfGym workspace running at https://local.gulfgym.anichur.com"
+  log "GulfGym workspace running at https://gulfgym-dev.anichur.com"
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────

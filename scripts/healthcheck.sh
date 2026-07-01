@@ -74,25 +74,11 @@ check "redis ping" docker exec redis redis-cli -a "$REDIS_PASSWORD" PING
 check "nginx config test" docker exec nginx-gateway nginx -t
 
 check_app_endpoint "production app" "https://storeconsole.com"
-check_app_endpoint "staging app" "https://staging.storeconsole.com" -u "${STAGING_BASIC_AUTH_USER:-}:${STAGING_BASIC_AUTH_PASS:-}"
-check_app_endpoint "dev app" "https://dev.storeconsole.com" -u "${DEV_BASIC_AUTH_USER:-}:${DEV_BASIC_AUTH_PASS:-}"
-gulfgym_dev_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 -u "${GULFGYM_DEV_BASIC_AUTH_USER:-}:${GULFGYM_DEV_BASIC_AUTH_PASS:-}" https://gulfgym-dev.anichur.com/ || echo 000)"
-if [[ "$gulfgym_dev_code" == "200" || "$gulfgym_dev_code" == "401" ]]; then
-  echo "[OK] gulfgym dev (/) -> ${gulfgym_dev_code}"
-else
-  echo "[FAIL] gulfgym dev -> / failed (${gulfgym_dev_code})"
-  FAILURES+=("gulfgym dev")
-fi
-check_app_endpoint "focus backend" "https://focus-backend.anichur.com"
-check_app_endpoint "focus frontend" "https://focus-frontend.anichur.com"
-check_app_endpoint "focus web" "https://focus-web.anichur.com"
+check_app_endpoint "staging app" "https://staging.storeconsole.com" -u "${STAGING_BASIC_AUTH_USER}:${STAGING_BASIC_AUTH_PASS}"
+check_app_endpoint "dev app" "https://dev.storeconsole.com" -u "${DEV_BASIC_AUTH_USER}:${DEV_BASIC_AUTH_PASS}"
 check "monitor endpoint" curl -fsS --max-time 15 -u "${MONITOR_BASIC_AUTH_USER}:${MONITOR_BASIC_AUTH_PASS}" https://monitor.storeconsole.com
 
 for env in production staging dev; do
-  if [[ "$env" == "dev" ]] && ! docker inspect storeconsole-dev-ssr >/dev/null 2>&1; then
-    echo "[SKIP] dev inertia ssr (no legacy SSR container)"
-    continue
-  fi
   if declare -F resolve_active_color >/dev/null 2>&1; then
     active_color="$(resolve_active_color "$env")"
   else

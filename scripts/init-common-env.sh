@@ -52,7 +52,6 @@ fill_if_placeholder "PULSE_DEV_PASSWORD"
 fill_if_placeholder "DEV_BASIC_AUTH_PASS"
 fill_if_placeholder "STAGING_BASIC_AUTH_PASS"
 fill_if_placeholder "MONITOR_BASIC_AUTH_PASS"
-fill_if_placeholder "GULFGYM_DEV_BASIC_AUTH_PASS"
 fill_if_placeholder "BESZEL_AGENT_TOKEN"
 
 mkdir -p "$BESZEL_KEY_DIR"
@@ -72,9 +71,6 @@ if grep -q '^STAGING_BASIC_AUTH_USER=SET_.*$' "$ENV_FILE" || ! grep -q '^STAGING
 fi
 if grep -q '^MONITOR_BASIC_AUTH_USER=SET_.*$' "$ENV_FILE" || ! grep -q '^MONITOR_BASIC_AUTH_USER=' "$ENV_FILE"; then
   set_value "MONITOR_BASIC_AUTH_USER" "monitoradmin"
-fi
-if grep -q '^GULFGYM_DEV_BASIC_AUTH_USER=SET_.*$' "$ENV_FILE" || ! grep -q '^GULFGYM_DEV_BASIC_AUTH_USER=' "$ENV_FILE"; then
-  set_value "GULFGYM_DEV_BASIC_AUTH_USER" "gulfgymdev"
 fi
 
 echo "Initialized ${ENV_FILE}. Review Brevo and GHCR values before production deploy."
