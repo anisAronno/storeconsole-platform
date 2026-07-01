@@ -46,7 +46,7 @@ services:
       - private_backend
     restart: unless-stopped
     cpus: "0.15"
-    mem_limit: 320m
+    mem_limit: 768m
     depends_on:
       web:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
       resources:
         limits:
           cpus: '0.15'
-          memory: 320M
+          memory: 768M
     security_opt:
       - no-new-privileges:true
 
