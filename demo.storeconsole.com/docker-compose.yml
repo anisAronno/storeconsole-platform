@@ -1,0 +1,84 @@
+name: storeconsole-demo
+
+services:
+  web:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-demo-web
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: demo
+      APP_URL: https://demo.storeconsole.com
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+      - ./public:/var/www/html/public
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.35"
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",9000)?0:1);'"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.35'
+          memory: 384M
+    security_opt:
+      - no-new-privileges:true
+
+  queue:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-demo-queue
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: demo
+    command: ["php", "artisan", "horizon"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.15"
+    mem_limit: 256m
+    depends_on:
+      web:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+
+  scheduler:
+    image: ${APP_IMAGE:?set APP_IMAGE}
+    container_name: storeconsole-demo-scheduler
+    env_file:
+      - ./.env
+    environment:
+      APP_ENV: demo
+    command: ["/bin/sh", "-lc", "while true; do php artisan schedule:run --no-interaction 2>&1 | head -5; sleep 60; done"]
+    volumes:
+      - ./shared-storage:/var/www/html/storage
+    networks:
+      - private_backend
+    restart: unless-stopped
+    cpus: "0.10"
+    mem_limit: 96m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 96M
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  private_backend:
+    external: true

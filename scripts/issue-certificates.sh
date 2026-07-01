@@ -9,6 +9,7 @@ DOMAINS=(
   www.storeconsole.com
   staging.storeconsole.com
   dev.storeconsole.com
+  demo.storeconsole.com
   monitor.storeconsole.com
 )
 
