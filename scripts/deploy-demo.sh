@@ -87,6 +87,12 @@ CURRENT_STEP="recreate_containers"
   docker compose up -d --force-recreate --remove-orphans
 )
 
+log "Reloading nginx-gateway (upstream is a static-resolved container name; a fresh"
+log "container IP after force-recreate needs an explicit reload to be picked up)"
+CURRENT_STEP="reload_nginx"
+docker exec nginx-gateway nginx -t
+docker exec nginx-gateway nginx -s reload
+
 log "Waiting for web container health"
 CURRENT_STEP="wait_health"
 for _ in $(seq 1 30); do
