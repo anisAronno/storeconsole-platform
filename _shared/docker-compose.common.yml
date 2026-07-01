@@ -21,6 +21,7 @@ services:
       - ../storeconsole.com:/opt/storeconsole-platform/storeconsole.com:ro
       - ../staging.storeconsole.com:/opt/storeconsole-platform/staging.storeconsole.com:ro
       - ../dev.storeconsole.com:/opt/storeconsole-platform/dev.storeconsole.com:ro
+      - ../demo.storeconsole.com:/opt/storeconsole-platform/demo.storeconsole.com:ro
       - /opt/gulfgym-platform/gulfgym.anichur.com/public:/opt/gulfgym-platform/gulfgym.anichur.com/public:ro
       - nginx-cache:/var/cache/nginx
       - ./logs/nginx:/var/log/nginx
