@@ -11,6 +11,7 @@ services:
       APP_URL: https://demo.storeconsole.com
     volumes:
       - ./shared-storage:/var/www/html/storage
+      - ./horizon.php:/var/www/html/config/horizon.php:ro
       - ./public:/var/www/html/public
     networks:
       - private_backend
@@ -40,6 +41,7 @@ services:
     command: ["php", "artisan", "horizon"]
     volumes:
       - ./shared-storage:/var/www/html/storage
+      - ./horizon.php:/var/www/html/config/horizon.php:ro
     networks:
       - private_backend
     restart: unless-stopped
@@ -66,6 +68,7 @@ services:
     command: ["/bin/sh", "-lc", "while true; do php artisan schedule:run --no-interaction 2>&1 | head -5; sleep 60; done"]
     volumes:
       - ./shared-storage:/var/www/html/storage
+      - ./horizon.php:/var/www/html/config/horizon.php:ro
     networks:
       - private_backend
     restart: unless-stopped
